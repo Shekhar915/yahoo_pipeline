@@ -3,11 +3,12 @@ import urllib
 
 import pandas as pd
 from sqlalchemy import create_engine, inspect, text
+from config import SQL_SERVER, SQL_DATABASE, SQL_USER, SQL_PASSWORD
 
-SERVER = "sqlserver-shekhar.database.windows.net"
-DATABASE = "db_shekhar"
-USERNAME = "sqladmin"
-PASSWORD = "Password@123"
+SERVER = SQL_SERVER
+DATABASE = SQL_DATABASE
+USERNAME = SQL_USER
+PASSWORD = SQL_PASSWORD
 
 DEFAULT_DRIVERS = [
     "ODBC Driver 18 for SQL Server",

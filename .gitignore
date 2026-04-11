@@ -1,0 +1,49 @@
+# 🔐 Environment variables (VERY IMPORTANT)
+.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.env/
+.envrc
+.venv/
+ENV/
+env/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# VS Code / IDE
+.vscode/
+.idea/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Build / dist
+build/
+dist/
+*.egg-info/
+
+# SQLite / local DBs (if any)
+*.db
+*.sqlite3
+
+# Azure / deployment files (optional)
+*.pem
+*.key
+
+# Temporary files
+*.tmp
+*.swp
+
+# System files
+Thumbs.db
