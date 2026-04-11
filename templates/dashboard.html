@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Yahoo Finance Dashboard — META</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #222536;
+    --border: #2e3250;
+    --text: #e8eaf0;
+    --muted: #8b8fa8;
+    --accent: #4f8ef7;
+    --green: #22c55e;
+    --red: #ef4444;
+    --amber: #f59e0b;
+    --purple: #a78bfa;
+    --teal: #2dd4bf;
+    --radius: 10px;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; min-height: 100vh; }
+
+  /* NAV */
+  nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; height: 54px;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .nav-brand { font-size: 16px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 10px; }
+  .nav-brand .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+  .nav-right { display: flex; align-items: center; gap: 16px; }
+  .ticker-badge {
+    background: var(--surface2); border: 1px solid var(--border);
+    padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; color: var(--accent);
+  }
+  .last-updated { font-size: 12px; color: var(--muted); }
+  .refresh-btn {
+    background: var(--accent); color: #fff; border: none; border-radius: var(--radius);
+    padding: 6px 14px; font-size: 13px; cursor: pointer; font-weight: 500;
+  }
+  .refresh-btn:hover { opacity: 0.85; }
+
+  /* LAYOUT */
+  main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+
+  /* STAT CARDS */
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+  .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .stat-value { font-size: 22px; font-weight: 600; }
+  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .up { color: var(--green); }
+  .down { color: var(--red); }
+  .neu { color: var(--text); }
+
+  /* CHART GRID */
+  .chart-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .chart-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px;
+  }
+  .card-title {
+    font-size: 13px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 14px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card-title .pill {
+    font-size: 11px; padding: 2px 8px; border-radius: 12px;
+    background: var(--surface2); color: var(--muted); font-weight: 400; text-transform: none;
+  }
+  .chart-wrap { position: relative; height: 220px; }
+  .chart-wrap-sm { position: relative; height: 160px; }
+
+  /* TABS for Options */
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+  .tab {
+    padding: 6px 16px; border-radius: 6px; font-size: 13px; cursor: pointer;
+    border: 1px solid var(--border); background: transparent; color: var(--muted);
+  }
+  .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; max-height: 340px; overflow-y: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    position: sticky; top: 0; background: var(--surface2);
+    padding: 9px 12px; text-align: left; color: var(--muted);
+    font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody td { padding: 8px 12px; color: var(--text); }
+  .itm-badge {
+    display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px;
+    background: rgba(34,197,94,0.15); color: var(--green);
+  }
+  .otm-badge {
+    display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px;
+    background: rgba(239,68,68,0.12); color: var(--red);
+  }
+  .strike-cell { font-weight: 600; color: var(--text); }
+
+  /* INDICATOR BADGES */
+  .ind-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .ind-pill {
+    display: flex; flex-direction: column; align-items: center;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 8px 14px; min-width: 90px;
+  }
+  .ind-name { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .ind-val { font-size: 18px; font-weight: 600; margin-top: 2px; }
+
+  /* FILTER ROW */
+  .filter-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .filter-row label { font-size: 12px; color: var(--muted); }
+  .filter-row select, .filter-row input[type=text] {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 5px 10px; font-size: 13px;
+  }
+
+  @media (max-width: 900px) {
+    .chart-grid { grid-template-columns: 1fr; }
+    .chart-grid-3 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">
+    <div class="dot"></div>
+    Yahoo Finance Analytics
+  </div>
+  <div class="nav-right">
+    <span class="ticker-badge">META</span>
+    <span class="last-updated" id="lastUpdated">Loading...</span>
+    <button class="refresh-btn" onclick="loadAll()">Refresh</button>
+  </div>
+</nav>
+
+<main>
+
+  <!-- STAT CARDS -->
+  <div class="stats-row" id="statCards">
+    <div class="stat-card"><div class="stat-label">Last Price</div><div class="stat-value neu" id="sc-price">—</div><div class="stat-sub" id="sc-change">—</div></div>
+    <div class="stat-card"><div class="stat-label">RSI (14)</div><div class="stat-value" id="sc-rsi">—</div><div class="stat-sub" id="sc-rsi-label">—</div></div>
+    <div class="stat-card"><div class="stat-label">MACD</div><div class="stat-value" id="sc-macd">—</div><div class="stat-sub" id="sc-signal">Signal: —</div></div>
+    <div class="stat-card"><div class="stat-label">MA 10</div><div class="stat-value neu" id="sc-ma10">—</div><div class="stat-sub">10-period avg</div></div>
+    <div class="stat-card"><div class="stat-label">MA 50</div><div class="stat-value neu" id="sc-ma50">—</div><div class="stat-sub">50-period avg</div></div>
+    <div class="stat-card"><div class="stat-label">Volatility</div><div class="stat-value" id="sc-vol">—</div><div class="stat-sub">rolling std</div></div>
+  </div>
+
+  <!-- INDICATOR PILLS -->
+  <div class="ind-row" id="indPills"></div>
+
+  <!-- PRICE + VOLUME CHART -->
+  <div class="chart-grid">
+    <div class="card">
+      <div class="card-title">Price history <span class="pill" id="priceRange">1H intervals</span></div>
+      <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Volume</div>
+      <div class="chart-wrap"><canvas id="volumeChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- RSI + MACD + MA CHART -->
+  <div class="chart-grid-3">
+    <div class="card">
+      <div class="card-title">RSI (14)</div>
+      <div class="chart-wrap-sm"><canvas id="rsiChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">MACD</div>
+      <div class="chart-wrap-sm"><canvas id="macdChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Moving averages</div>
+      <div class="chart-wrap-sm"><canvas id="maChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- OPTIONS CHAIN TABLE -->
+  <div class="card">
+    <div class="card-title">Options chain</div>
+    <div class="filter-row">
+      <div class="tabs" id="optionTabs">
+        <button class="tab active" onclick="switchTab('call',this)">Calls</button>
+        <button class="tab" onclick="switchTab('put',this)">Puts</button>
+      </div>
+      <label>Expiry</label>
+      <select id="expiryFilter" onchange="filterOptions()">
+        <option value="">All</option>
+      </select>
+      <label>Strike</label>
+      <input type="text" id="strikeFilter" placeholder="e.g. 600" oninput="filterOptions()" style="width:100px"/>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Contract</th>
+            <th>Expiry</th>
+            <th>Strike</th>
+            <th>Last</th>
+            <th>Bid</th>
+            <th>Ask</th>
+            <th>Volume</th>
+            <th>OI</th>
+            <th>IV</th>
+            <th>ITM</th>
+          </tr>
+        </thead>
+        <tbody id="optionsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ---------- CONFIG ----------
+const API_BASE = 'http://127.0.0.1:5001/';  // same-origin Flask
+let allOptionsData = [];
+let currentTab = 'call';
+let priceChartInst, volumeChartInst, rsiChartInst, macdChartInst, maChartInst;
+
+const CHART_DEFAULTS = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+  scales: {
+    x: { ticks: { color: '#8b8fa8', maxTicksLimit: 8, font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+    y: { ticks: { color: '#8b8fa8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.06)' } }
+  }
+};
+
+// ---------- MOCK DATA (replace with real fetch below) ----------
+function mockHistory(n=60) {
+  const d = []; let p = 590;
+  for (let i=0; i<n; i++) {
+    p += (Math.random()-0.48)*8;
+    const v = Math.round(1000000 + Math.random()*4000000);
+    const ts = new Date(Date.now() - (n-i)*3600000);
+    d.push({ Datetime: ts.toISOString(), Close: +p.toFixed(2), Open: +(p+(Math.random()-0.5)*4).toFixed(2), High: +(p+Math.random()*6).toFixed(2), Low: +(p-Math.random()*6).toFixed(2), Volume: v, ma_10: null, ma_50: null, rsi: null, macd: null, signal: null, volatility: null });
+  }
+  // calculate indicators
+  for (let i=0; i<d.length; i++) {
+    if (i>=9)  d[i].ma_10 = +(d.slice(i-9,i+1).reduce((s,r)=>s+r.Close,0)/10).toFixed(2);
+    if (i>=49) d[i].ma_50 = +(d.slice(i-49,i+1).reduce((s,r)=>s+r.Close,0)/50).toFixed(2);
+    if (i>=14) {
+      let gains=0,losses=0;
+      for (let j=i-13;j<=i;j++){const diff=d[j].Close-d[j-1<0?j:j-1].Close;if(diff>0)gains+=diff;else losses+=Math.abs(diff);}
+      const rs=(gains/14)/(losses/14||0.001); d[i].rsi=+(100-100/(1+rs)).toFixed(2);
+    }
+    if (i>=1) {
+      d[i].macd = +((d[i].Close-d[Math.max(0,i-12)].Close)-(d[i].Close-d[Math.max(0,i-26)].Close)).toFixed(3);
+      d[i].signal = d[i].macd*0.3+(d[Math.max(0,i-1)].signal||0)*0.7;
+      d[i].signal = +d[i].signal.toFixed(3);
+    }
+    if (i>=9) d[i].volatility = +(Math.sqrt(d.slice(i-9,i+1).reduce((s,r)=>s+(r.Close-d[i].ma_10)**2,0)/10)/d[i].Close).toFixed(4);
+  }
+  return d;
+}
+
+function mockOptions() {
+  const types = ['call','put']; const exps = ['2026-04-13','2026-04-17','2026-04-24','2026-05-01'];
+  const rows = [];
+  for (const t of types) {
+    for (const exp of exps) {
+      for (let s=500; s<=700; s+=10) {
+        const basePrice = Math.max(0.01, (t==='call'?620-s:s-620)*0.8+Math.random()*5);
+        rows.push({
+          contractSymbol:`META${exp.replace(/-/g,'').slice(2)}${t==='call'?'C':'P'}${String(s*1000).padStart(8,'0')}`,
+          expiration: exp, strike: s,
+          lastPrice: +basePrice.toFixed(2), bid: +(basePrice-0.2).toFixed(2), ask: +(basePrice+0.2).toFixed(2),
+          volume: Math.round(Math.random()*5000), openInterest: Math.round(Math.random()*20000),
+          impliedVolatility: +(0.3+Math.random()*0.5).toFixed(3),
+          inTheMoney: t==='call'?s<620:s>620, optionType: t
+        });
+      }
+    }
+  }
+  return rows;
+}
+
+// ---------- FETCH (tries real API, falls back to mock) ----------
+async function fetchHistory() {
+  try {
+    const r = await fetch(API_BASE + '/api/history?ticker=META');
+    if (!r.ok) throw new Error();
+    return await r.json();
+  } catch { return mockHistory(80); }
+}
+
+async function fetchOptions() {
+  try {
+    const r = await fetch(API_BASE + '/api/options?ticker=META');
+    if (!r.ok) throw new Error();
+    return await r.json();
+  } catch { return mockOptions(); }
+}
+
+// ---------- CHARTS ----------
+function destroyChart(inst) { if (inst) inst.destroy(); }
+
+function makeLineChart(id, labels, datasets, extra={}) {
+  const ctx = document.getElementById(id).getContext('2d');
+  return new Chart(ctx, { type:'line', data:{ labels, datasets }, options:{ ...CHART_DEFAULTS, ...extra } });
+}
+
+function renderHistory(data) {
+  const maybe = key => d => d[key] !== undefined ? d[key] : d[key.toLowerCase()];
+  const getClose = maybe('Close');
+  const getOpen = maybe('Open');
+  const getHigh = maybe('High');
+  const getLow = maybe('Low');
+  const getVolume = maybe('Volume');
+
+  const valid = data.filter(d => getClose(d) != null && d.Datetime);
+  const labels = valid.map(d => { const dt=new Date(d.Datetime); return `${dt.getMonth()+1}/${dt.getDate()} ${dt.getHours()}:00`; });
+  const closes = valid.map(d => getClose(d));
+  const volumes = valid.map(d => getVolume(d));
+  const ma10 = valid.map(d => d.ma_10);
+  const ma50 = valid.map(d => d.ma_50);
+  const rsiVals = valid.map(d => d.rsi);
+  const macdVals = valid.map(d => d.macd);
+  const signalVals = valid.map(d => d.signal);
+
+  // Stats
+  const last = valid[valid.length-1];
+  const prev = valid[valid.length-2];
+  const change = last && prev ? (last.Close - prev.Close) : 0;
+  const changePct = prev ? (change/prev.Close*100) : 0;
+  document.getElementById('sc-price').textContent = last ? `$${last.Close.toFixed(2)}` : '—';
+  const changeEl = document.getElementById('sc-change');
+  changeEl.textContent = `${change>=0?'+':''}${change.toFixed(2)} (${changePct.toFixed(2)}%)`;
+  changeEl.className = 'stat-sub ' + (change>=0?'up':'down');
+
+  if (last) {
+    const rsi = last.rsi;
+    const rsiEl = document.getElementById('sc-rsi');
+    rsiEl.textContent = rsi ? rsi.toFixed(1) : '—';
+    rsiEl.className = 'stat-value ' + (rsi>70?'down':rsi<30?'up':'neu');
+    document.getElementById('sc-rsi-label').textContent = rsi>70?'Overbought':rsi<30?'Oversold':'Neutral';
+    const macdV = last.macd;
+    const macdEl = document.getElementById('sc-macd');
+    macdEl.textContent = macdV ? macdV.toFixed(3) : '—';
+    macdEl.className = 'stat-value ' + (macdV>0?'up':'down');
+    document.getElementById('sc-signal').textContent = `Signal: ${last.signal ? last.signal.toFixed(3) : '—'}`;
+    document.getElementById('sc-ma10').textContent = last.ma_10 ? `$${last.ma_10.toFixed(2)}` : '—';
+    document.getElementById('sc-ma50').textContent = last.ma_50 ? `$${last.ma_50.toFixed(2)}` : '—';
+    const volEl = document.getElementById('sc-vol');
+    volEl.textContent = last.volatility ? (last.volatility*100).toFixed(2)+'%' : '—';
+    volEl.className = 'stat-value ' + (last.volatility>0.02?'down':'up');
+  }
+
+  // Indicator pills (lag_1, lag_2, high_low_diff, open_close_diff)
+  if (last) {
+    const pills = [
+      { name:'Lag 1', val: last.lag_1 ? `$${(+last.lag_1).toFixed(2)}` : prev?.Close ? `$${prev.Close.toFixed(2)}` : '—', color:'var(--purple)' },
+      { name:'H-L diff', val: last.high_low_diff ? `$${(+last.high_low_diff).toFixed(2)}` : '—', color:'var(--amber)' },
+      { name:'O-C diff', val: last.open_close_diff !== undefined ? `$${(+last.open_close_diff).toFixed(2)}` : '—', color:'var(--teal)' },
+    ];
+    document.getElementById('indPills').innerHTML = pills.map(p =>
+      `<div class="ind-pill"><div class="ind-name">${p.name}</div><div class="ind-val" style="color:${p.color}">${p.val}</div></div>`
+    ).join('');
+  }
+
+  // Price chart
+  destroyChart(priceChartInst);
+  priceChartInst = makeLineChart('priceChart', labels, [
+    { label:'Close', data: closes, borderColor:'#4f8ef7', borderWidth:2, pointRadius:0, tension:0.3, fill:false },
+  ]);
+
+  // Volume chart
+  destroyChart(volumeChartInst);
+  const vCtx = document.getElementById('volumeChart').getContext('2d');
+  volumeChartInst = new Chart(vCtx, {
+    type:'bar', data:{ labels, datasets:[{ label:'Volume', data: volumes, backgroundColor:'rgba(79,142,247,0.35)', borderColor:'#4f8ef7', borderWidth:0 }] },
+    options:{ ...CHART_DEFAULTS }
+  });
+
+  // RSI chart
+  destroyChart(rsiChartInst);
+  rsiChartInst = makeLineChart('rsiChart', labels, [
+    { label:'RSI', data: rsiVals, borderColor:'#a78bfa', borderWidth:2, pointRadius:0, tension:0.3, fill:false }
+  ], {
+    plugins:{ legend:{display:false}, annotation:{} },
+    scales:{
+      x:{ ticks:{color:'#8b8fa8',maxTicksLimit:5,font:{size:10}}, grid:{color:'rgba(255,255,255,0.04)'} },
+      y:{ min:0, max:100, ticks:{color:'#8b8fa8',font:{size:10}}, grid:{color:'rgba(255,255,255,0.06)'} }
+    }
+  });
+
+  // MACD chart
+  destroyChart(macdChartInst);
+  macdChartInst = makeLineChart('macdChart', labels, [
+    { label:'MACD', data: macdVals, borderColor:'#22c55e', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false },
+    { label:'Signal', data: signalVals, borderColor:'#f59e0b', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false, borderDash:[4,3] }
+  ], { plugins:{ legend:{ display:true, labels:{color:'#8b8fa8',font:{size:11}} } } });
+
+  // MA chart
+  destroyChart(maChartInst);
+  maChartInst = makeLineChart('maChart', labels, [
+    { label:'Price', data: closes, borderColor:'rgba(79,142,247,0.4)', borderWidth:1, pointRadius:0, tension:0.3, fill:false },
+    { label:'MA10', data: ma10, borderColor:'#22c55e', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false },
+    { label:'MA50', data: ma50, borderColor:'#f59e0b', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false }
+  ], { plugins:{ legend:{ display:true, labels:{color:'#8b8fa8',font:{size:11}} } } });
+
+  document.getElementById('lastUpdated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+}
+
+function renderOptions(data) {
+  allOptionsData = data;
+  // populate expiry filter
+  const expiries = [...new Set(data.map(d=>d.expiration))].sort();
+  const sel = document.getElementById('expiryFilter');
+  sel.innerHTML = '<option value="">All</option>' + expiries.map(e=>`<option value="${e}">${e}</option>`).join('');
+  filterOptions();
+}
+
+function filterOptions() {
+  const expiry = document.getElementById('expiryFilter').value;
+  const strike = document.getElementById('strikeFilter').value;
+  let filtered = allOptionsData.filter(d => d.optionType === currentTab);
+  if (expiry) filtered = filtered.filter(d => d.expiration === expiry);
+  if (strike) filtered = filtered.filter(d => Math.abs(d.strike - parseFloat(strike)) < 20);
+  filtered = filtered.sort((a,b) => a.strike - b.strike);
+
+  const tbody = document.getElementById('optionsBody');
+  tbody.innerHTML = filtered.slice(0,100).map(d => `
+    <tr>
+      <td style="font-family:monospace;font-size:11px;color:var(--muted)">${d.contractSymbol}</td>
+      <td>${d.expiration}</td>
+      <td class="strike-cell">$${d.strike}</td>
+      <td>${d.lastPrice >= 0 ? '$'+d.lastPrice.toFixed(2) : '—'}</td>
+      <td>${d.bid >= 0 ? '$'+d.bid.toFixed(2) : '—'}</td>
+      <td>${d.ask >= 0 ? '$'+d.ask.toFixed(2) : '—'}</td>
+      <td>${d.volume ? d.volume.toLocaleString() : '0'}</td>
+      <td>${d.openInterest ? d.openInterest.toLocaleString() : '0'}</td>
+      <td>${d.impliedVolatility ? (d.impliedVolatility*100).toFixed(1)+'%' : '—'}</td>
+      <td><span class="${d.inTheMoney?'itm-badge':'otm-badge'}">${d.inTheMoney?'ITM':'OTM'}</span></td>
+    </tr>
+  `).join('');
+}
+
+function switchTab(type, el) {
+  currentTab = type;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  filterOptions();
+}
+
+async function loadAll() {
+  document.getElementById('lastUpdated').textContent = 'Loading...';
+  const [hist, opts] = await Promise.all([fetchHistory(), fetchOptions()]);
+  renderHistory(hist);
+  renderOptions(opts);
+}
+
+loadAll();
+</script>
+</body>
+</html>
