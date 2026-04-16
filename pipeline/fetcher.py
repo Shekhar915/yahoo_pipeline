@@ -3,7 +3,7 @@ import pandas as pd
 import json
 from datetime import datetime
 
-def fetch_options_data(ticker="META"):
+def fetch_options_data(ticker="AAPL"):
     t = yf.Ticker(ticker)
     
     expirations = t.options
